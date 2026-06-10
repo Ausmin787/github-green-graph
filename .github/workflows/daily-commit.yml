@@ -30,6 +30,13 @@ jobs:
         run: |
           mkdir -p activity
 
+          TODAY="$(date -u '+%Y-%m-%d')"
+
+          if grep -q "^$TODAY " activity/log.txt 2>/dev/null; then
+            echo "Activity already logged for $TODAY. Skipping duplicate daily commit."
+            exit 0
+          fi
+
           # Read current streak, default to 0 if file doesn't exist
           STREAK=$(cat activity/streak.txt 2>/dev/null || echo 0)
           NEW_STREAK=$((STREAK + 1))

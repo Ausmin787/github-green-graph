@@ -102,6 +102,7 @@ python scripts/draw_art.py "HIRE ME" --intensity 4 --push
 | `--dry-run` | off | Preview without touching git |
 | `--yes` | off | Skip the confirmation prompt |
 | `--push` | off | Auto-push after drawing |
+| `--start-date` | auto | Force art to start from a specific Sunday (`YYYY-MM-DD`) |
 
 ### Supported characters:
 ```

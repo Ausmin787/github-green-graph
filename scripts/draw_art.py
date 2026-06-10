@@ -68,6 +68,23 @@ def _graph_start_sunday() -> date:
     return approx_start - timedelta(days=days_back)
 
 
+def _parse_start_date(raw: str) -> date:
+    """Parse YYYY-MM-DD string and validate it falls on a Sunday."""
+    try:
+        d = date.fromisoformat(raw)
+    except ValueError:
+        print(f"ERROR: --start-date '{raw}' is not a valid YYYY-MM-DD date.")
+        sys.exit(1)
+    if d.weekday() != 6:  # 6 = Sunday in Python
+        day_name = d.strftime("%A")
+        print(
+            f"ERROR: --start-date must be a Sunday. '{raw}' is a {day_name}.\n"
+            f"Nearest Sunday before: {d - timedelta(days=(d.weekday() + 1) % 7)}"
+        )
+        sys.exit(1)
+    return d
+
+
 def _print_preview(columns: list[list[int]]) -> None:
     print("\nContribution graph preview  (# = commit, . = empty):")
     print("  +" + "-" * len(columns) + "+")
@@ -124,6 +141,7 @@ def draw(
     yes: bool,
     push: bool,
     repo_path: Path,
+    start_sunday: date | None = None,
 ) -> None:
     columns = _text_to_columns(text)
     total_weeks_needed = len(columns) + col_offset
@@ -138,7 +156,8 @@ def draw(
 
     _print_preview(columns)
 
-    start_sunday = _graph_start_sunday()
+    if start_sunday is None:
+        start_sunday = _graph_start_sunday()
     today = date.today()
     # Separate file from the daily-commit workflow's log.txt to avoid content collisions.
     log_file = repo_path / "activity" / "art-log.txt"
@@ -219,7 +238,15 @@ def main() -> None:
         default=Path("."),
         help="Path to the git repo (default: current directory)",
     )
+    parser.add_argument(
+        "--start-date",
+        type=str,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Force art to start from this Sunday instead of the auto-computed graph start",
+    )
     args = parser.parse_args()
+    start_sunday = _parse_start_date(args.start_date) if args.start_date else None
     draw(
         text=args.text,
         intensity=args.intensity,
@@ -228,6 +255,7 @@ def main() -> None:
         yes=args.yes,
         push=args.push,
         repo_path=args.repo_path.resolve(),
+        start_sunday=start_sunday,
     )
 
 
