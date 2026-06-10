@@ -22,16 +22,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          # IMPORTANT: This email must match a verified email on your GitHub account.
-          # Option 1 — Use your real email stored as a secret:
-          #   Go to repo Settings → Secrets → New secret → GIT_EMAIL = your@email.com
-          #   Then uncomment the next two lines and remove the ones after them.
-          # git config user.email "${{ secrets.GIT_EMAIL }}"
-          # git config user.name "${{ secrets.GIT_NAME }}"
-
-          # Option 2 — GitHub noreply email (works automatically, no setup needed):
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name "${{ github.actor }}"
+          git config user.email "ausmindeb32@gmail.com"
+          git config user.name  "Sasanka"
 
       - name: Increment streak and log activity
         run: |
