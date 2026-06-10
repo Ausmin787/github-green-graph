@@ -89,7 +89,9 @@ def _make_backdated_commits(
     dry_run: bool,
 ) -> None:
     """Append `count` git commits backdated to target_date."""
-    date_str = target_date.strftime("%Y-%m-%dT12:00:00")
+    # Explicit UTC offset so git doesn't interpret the timestamp in the local timezone,
+    # which would shift commits to the wrong calendar day on GitHub's UTC-based graph.
+    date_str = target_date.strftime("%Y-%m-%dT12:00:00+00:00")
     env = {**os.environ, "GIT_AUTHOR_DATE": date_str, "GIT_COMMITTER_DATE": date_str}
 
     if dry_run:
@@ -99,14 +101,19 @@ def _make_backdated_commits(
     for i in range(count):
         with open(log_file, "a") as fh:
             fh.write(f"{date_str} {i}\n")
-        subprocess.run(
-            ["git", "add", str(log_file)],
-            cwd=repo_path, env=env, check=True, capture_output=True,
-        )
-        subprocess.run(
-            ["git", "commit", "-m", f"activity: {target_date} ({i + 1}/{count})"],
-            cwd=repo_path, env=env, check=True, capture_output=True,
-        )
+        try:
+            subprocess.run(
+                ["git", "add", str(log_file)],
+                cwd=repo_path, env=env, check=True, capture_output=True,
+            )
+            subprocess.run(
+                ["git", "commit", "-m", f"activity: {target_date} ({i + 1}/{count})"],
+                cwd=repo_path, env=env, check=True, capture_output=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or b"").decode(errors="replace")
+            print(f"\nERROR: git command failed on {target_date} commit {i + 1}:\n{stderr}")
+            raise
 
 
 def draw(
@@ -114,6 +121,7 @@ def draw(
     intensity: int,
     col_offset: int,
     dry_run: bool,
+    yes: bool,
     push: bool,
     repo_path: Path,
 ) -> None:
@@ -132,7 +140,8 @@ def draw(
 
     start_sunday = _graph_start_sunday()
     today = date.today()
-    log_file = repo_path / "activity" / "log.txt"
+    # Separate file from the daily-commit workflow's log.txt to avoid content collisions.
+    log_file = repo_path / "activity" / "art-log.txt"
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     lit_pixels = sum(1 for col in columns for px in col if px)
@@ -140,7 +149,10 @@ def draw(
     print(f"Commits to make: {lit_pixels * intensity}")
     print(f"Graph starts   : {start_sunday} (Sunday)\n")
 
-    if not dry_run:
+    if not dry_run and not yes:
+        if not sys.stdin.isatty():
+            print("ERROR: stdin is not a terminal. Pass --yes to skip the confirmation prompt.")
+            sys.exit(1)
         answer = input("Proceed? This will add many backdated commits. [y/N] ").strip().lower()
         if answer != "y":
             print("Aborted.")
@@ -192,6 +204,11 @@ def main() -> None:
         help="Preview what would happen without touching git history",
     )
     parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt (useful for scripted / CI runs)",
+    )
+    parser.add_argument(
         "--push",
         action="store_true",
         help="Push to origin automatically after drawing",
@@ -208,6 +225,7 @@ def main() -> None:
         intensity=args.intensity,
         col_offset=args.col_offset,
         dry_run=args.dry_run,
+        yes=args.yes,
         push=args.push,
         repo_path=args.repo_path.resolve(),
     )
