@@ -1,0 +1,56 @@
+name: Daily Green Commit
+
+# Runs automatically every day + can be triggered manually
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 9:00 AM UTC daily (2:30 PM IST)
+  workflow_dispatch:       # manual trigger via GitHub UI
+
+permissions:
+  contents: write          # needed to push commits
+
+jobs:
+  daily-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so streak counter works correctly
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          # IMPORTANT: This email must match a verified email on your GitHub account.
+          # Option 1 — Use your real email stored as a secret:
+          #   Go to repo Settings → Secrets → New secret → GIT_EMAIL = your@email.com
+          #   Then uncomment the next two lines and remove the ones after them.
+          # git config user.email "${{ secrets.GIT_EMAIL }}"
+          # git config user.name "${{ secrets.GIT_NAME }}"
+
+          # Option 2 — GitHub noreply email (works automatically, no setup needed):
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "${{ github.actor }}"
+
+      - name: Increment streak and log activity
+        run: |
+          mkdir -p activity
+
+          # Read current streak, default to 0 if file doesn't exist
+          STREAK=$(cat activity/streak.txt 2>/dev/null || echo 0)
+          NEW_STREAK=$((STREAK + 1))
+
+          echo "$NEW_STREAK" > activity/streak.txt
+          echo "$(date -u '+%Y-%m-%d %H:%M UTC') | streak: $NEW_STREAK" >> activity/log.txt
+
+      - name: Commit and push
+        run: |
+          git add activity/
+          # Only commit if there are staged changes (idempotent)
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: daily activity log $(date -u '+%Y-%m-%d') [streak: $(cat activity/streak.txt)]"
+            git push
+          fi

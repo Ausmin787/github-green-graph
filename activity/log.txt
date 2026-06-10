@@ -1,0 +1,2 @@
+# Activity log — updated daily by GitHub Actions
+# Each line: YYYY-MM-DD HH:MM UTC | streak: N
